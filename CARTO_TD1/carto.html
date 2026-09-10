@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head> 
+<body>
+    <h1>Ma position (avec le getCurrentPosition)</h1>
+    <p id="lat">Latitude : </p>
+    <p id="lon">Longitude : </p>
+    <p id="alt">Altitude : </p>
+    <h2 id="pre">Précision</h2>
+    <h3 id="vit">Vitesse</h3>
+    <h4 id="dat">Date</h4>
+
+    <h1>Ma position (avec le watch)</h1>
+    <p id="lat2">Latitude : </p>
+    <p id="lon2">Longitude : </p>
+    <p id="alt2">Altitude : </p>
+    <h2 id="pre2">Précision</h2>
+    <h3 id="vit2">Vitesse</h3>
+    <h4 id="dat2">Date</h4>
+</body>
+<script>
+navigator.geolocation.getCurrentPosition(function(position) {
+    document.getElementById("lat").textContent = "Latitude : " + position.coords.latitude;
+    document.getElementById("lon").textContent = "Longitude : " + position.coords.longitude;
+    document.getElementById("alt").textContent = "Altitude : " + position.coords.altitude;
+    document.getElementById("pre").textContent = "Précision : " + position.coords.accuracy;
+    document.getElementById("vit").textContent = "Vitesse : " + position.coords.speed;
+    document.getElementById("dat").textContent = "Date : " + new Date(position.timestamp);
+});
+
+let watchId = navigator.geolocation.watchPosition(function(position) {
+    document.getElementById("lat2").textContent = "Latitude : " + position.coords.latitude;
+    document.getElementById("lon2").textContent = "Longitude : " + position.coords.longitude;
+    document.getElementById("alt2").textContent = "Altitude : " + position.coords.altitude;
+    document.getElementById("pre2").textContent = "Précision : " + position.coords.accuracy;
+    document.getElementById("vit2").textContent = "Vitesse : " + position.coords.speed;
+    document.getElementById("dat2").textContent = "Date : " + new Date(position.timestamp);
+});
+
+</script>
+</html>
