@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
 </head> 
 <body>
+    
     <h1>Ma position (avec le getCurrentPosition)</h1>
     <p id="lat">Latitude : </p>
     <p id="lon">Longitude : </p>
@@ -21,8 +25,15 @@
     <h2 id="pre2">Précision</h2>
     <h3 id="vit2">Vitesse</h3>
     <h4 id="dat2">Date</h4>
-</body>
-<script>
+
+     <div id="map"></div>
+     <style>#map { height: 700px; }</style>
+     
+     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+     <script>
 navigator.geolocation.getCurrentPosition(function(position) {
     document.getElementById("lat").textContent = "Latitude : " + position.coords.latitude;
     document.getElementById("lon").textContent = "Longitude : " + position.coords.longitude;
@@ -30,6 +41,27 @@ navigator.geolocation.getCurrentPosition(function(position) {
     document.getElementById("pre").textContent = "Précision : " + position.coords.accuracy;
     document.getElementById("vit").textContent = "Vitesse : " + position.coords.speed;
     document.getElementById("dat").textContent = "Date : " + new Date(position.timestamp);
+    var map = L.map('map').setView([position.coords.latitude, position.coords.longitude], 13  );
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+    var markerMaPos = L.marker([position.coords.latitude, position.coords.longitude]).addTo(map);
+    var circleNice = L.circle([43.700001, 7.250000], {
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.5,
+        radius: 5000
+    }).addTo(map);
+
+    var polygon = L.polygon([
+        [32.2949, -64.7814],
+        [25.7891, -80.2265],
+        [18.4663, -66.1057]
+    ],
+        {color: 'red'}
+    ).addTo(map);
+
 });
 
 let watchId = navigator.geolocation.watchPosition(function(position) {
@@ -41,5 +73,11 @@ let watchId = navigator.geolocation.watchPosition(function(position) {
     document.getElementById("dat2").textContent = "Date : " + new Date(position.timestamp);
 });
 
+
+
 </script>
+
+
+</body>
+
 </html>
