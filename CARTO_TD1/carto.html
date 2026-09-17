@@ -42,9 +42,9 @@ navigator.geolocation.getCurrentPosition(function(position) {
     document.getElementById("vit").textContent = "Vitesse : " + position.coords.speed;
     document.getElementById("dat").textContent = "Date : " + new Date(position.timestamp);
     var map = L.map('map').setView([position.coords.latitude, position.coords.longitude], 13  );
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png?api_key=eed6a6b4-d171-43e4-8215-e5f8490b4245', {
         maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://stamen.com/">Stamen Design</a>, &copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
     }).addTo(map);
     var markerMaPos = L.marker([position.coords.latitude, position.coords.longitude]).addTo(map);
     var circleNice = L.circle([43.700001, 7.250000], {
@@ -54,6 +54,7 @@ navigator.geolocation.getCurrentPosition(function(position) {
         radius: 5000
     }).addTo(map);
 
+
     var polygon = L.polygon([
         [32.2949, -64.7814],
         [25.7891, -80.2265],
@@ -61,6 +62,45 @@ navigator.geolocation.getCurrentPosition(function(position) {
     ],
         {color: 'red'}
     ).addTo(map);
+
+
+    var circleMaPos = L.circle([position.coords.latitude, position.coords.longitude], {
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.5,
+        radius: position.coords.accuracy
+    }).addTo(map);
+
+
+    var marseille = [43.296482, 5.36978];
+    var nice = [43.700001, 7.250000];
+    var markerMarseille = L.marker(marseille).addTo(map);
+    var markerNice = L.marker(nice).addTo(map);
+    L.polyline([marseille, nice], {
+        color: 'green'
+    }).addTo(map);
+    var distanceMetres = map.distance([position.coords.latitude, position.coords.longitude], marseille);
+    markerMaPos.bindPopup("Distance à Marseille : " + (distanceMetres / 1000) + " km");
+
+    fetch('https://geo.api.gouv.fr/communes/06088?format=geojson&geometry=contour')
+  .then(function(response) {
+    return response.json();
+  })
+  .then(function(data) {
+    L.geoJSON(data).addTo(map);
+  });
+
+  var start = position.coords.longitude + ',' + position.coords.latitude;
+var end = nice[1] + ',' + nice[0]; // nice = [lat, lon], donc on inverse
+
+fetch('https://router.project-osrm.org/route/v1/driving/' + start + ';' + end + '?overview=full&geometries=geojson')
+  .then(function(response) {
+    return response.json();
+  })
+  .then(function(data) {
+    var routeGeoJSON = data.routes[0].geometry;
+    L.geoJSON(routeGeoJSON, { color: 'purple' }).addTo(map);
+  });
 
 });
 
