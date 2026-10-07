@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TD2 - Three.js</title>
+  <style>
+    body { margin: 0; }          
+    canvas { display: block; }
+    #sensorBtn {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      padding: 12px 20px; font-size: 16px; font-weight: bold;
+      background: #ffd400; color: #e30613; border: 3px solid #e30613; border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <button id="sensorBtn">Activer les capteurs du téléphone</button>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
