@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 10; 
+camera.position.z = 10;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -16,7 +16,6 @@ scene.add(ambientLight);
 const dirLight = new THREE.DirectionalLight(0xffffff, 2);
 dirLight.position.set(3, 5, 4);
 scene.add(dirLight);
-
 
 function createLensTexture() {
   const canvas = document.createElement('canvas');
@@ -32,10 +31,10 @@ function createLensTexture() {
 
   const logo = new Image();
   logo.onload = () => {
-    const height = 460;                               
-    const width = height * (logo.width / logo.height); 
+    const height = 460;
+    const width = height * (logo.width / logo.height);
     ctx.drawImage(logo, (512 - width) / 2, (512 - height) / 2, width, height);
-    texture.needsUpdate = true; 
+    texture.needsUpdate = true;
   };
   logo.src = 'textures/rclens.png';
 
@@ -45,16 +44,16 @@ function createLensTexture() {
 const geometry = new THREE.BoxGeometry(3, 3, 3);
 const material = new THREE.MeshStandardMaterial({ map: createLensTexture() });
 const cube = new THREE.Mesh(geometry, material);
-cube.position.x = -3; // à gauche, pour laisser la place au canard
+cube.position.x = -3;
 scene.add(cube);
 
-let duck = null; 
+let duck = null;
 
 const gltfLoader = new GLTFLoader();
 gltfLoader.load(
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Duck/glTF-Binary/Duck.glb',
   (gltf) => {
-    duck = gltf.scene; // le modèle est un groupe d'objets
+    duck = gltf.scene;
 
     const box = new THREE.Box3().setFromObject(duck);
     const size = box.getSize(new THREE.Vector3());
@@ -63,29 +62,23 @@ gltfLoader.load(
     const center = new THREE.Box3().setFromObject(duck).getCenter(new THREE.Vector3());
     duck.position.sub(center);
     duck.position.x += 3;
-    duckBaseY = duck.position.y; 
+    duckBaseY = duck.position.y;
 
     scene.add(duck);
   },
-  undefined, 
+  undefined,
   (error) => console.error('Erreur de chargement du modèle :', error)
 );
 
-// Inclinaison voulue pour le cube (en radians), modifiée par le téléphone ou la souris
 const tilt = { x: 0, z: 0 };
 let duckBaseY = 0;
-let jumpStart = null; // moment où le saut a commencé (null = pas de saut en cours)
+let jumpStart = null;
 
-// DeviceOrientation : angles du téléphone en degrés
-//   beta  = inclinaison avant/arrière (-180..180)
-//   gamma = inclinaison gauche/droite (-90..90)
 function onOrientation(event) {
   tilt.x = THREE.MathUtils.degToRad(event.beta ?? 0);
   tilt.z = -THREE.MathUtils.degToRad(event.gamma ?? 0);
 }
 
-// DeviceMotion : accélération en m/s² (sans la gravité)
-// Si le téléphone est secoué assez fort, le canard saute
 function onMotion(event) {
   const a = event.acceleration;
   if (!a) return;
@@ -99,7 +92,6 @@ function jump() {
 
 const sensorBtn = document.getElementById('sensorBtn');
 sensorBtn.addEventListener('click', async () => {
-  // Sur iPhone, il faut demander la permission (obligatoirement après un clic)
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     await DeviceOrientationEvent.requestPermission();
     await DeviceMotionEvent.requestPermission();
@@ -109,30 +101,26 @@ sensorBtn.addEventListener('click', async () => {
   sensorBtn.remove();
 });
 
-// Sur PC (pas de capteurs) : la souris incline le cube, un clic fait sauter le canard
 window.addEventListener('mousemove', (event) => {
   tilt.x = (event.clientY / window.innerHeight - 0.5) * Math.PI;
   tilt.z = -(event.clientX / window.innerWidth - 0.5) * Math.PI;
 });
 renderer.domElement.addEventListener('click', jump);
 
-// ---------- Bonus : brouillard + pluie de confettis sang et or ----------
-// Fog(couleur, début, fin) : les objets s'effacent dans le noir entre 8 et 25 unités de la caméra
 scene.fog = new THREE.Fog(0x000000, 8, 25);
 
-// Particules = un seul objet THREE.Points avec des milliers de sommets (beaucoup plus rapide que 2000 Mesh)
 const confettiCount = 2000;
-const positions = new Float32Array(confettiCount * 3); // x, y, z pour chaque confetti
-const colors = new Float32Array(confettiCount * 3);    // r, g, b pour chaque confetti
-const speeds = new Float32Array(confettiCount);        // vitesse de chute de chaque confetti
+const positions = new Float32Array(confettiCount * 3);
+const colors = new Float32Array(confettiCount * 3);
+const speeds = new Float32Array(confettiCount);
 
 const red = new THREE.Color('#e30613');
 const gold = new THREE.Color('#ffd400');
 
 for (let i = 0; i < confettiCount; i++) {
-  positions[i * 3]     = THREE.MathUtils.randFloat(-15, 15); // x
-  positions[i * 3 + 1] = THREE.MathUtils.randFloat(-10, 10); // y
-  positions[i * 3 + 2] = THREE.MathUtils.randFloat(-15, 5);  // z
+  positions[i * 3]     = THREE.MathUtils.randFloat(-15, 15);
+  positions[i * 3 + 1] = THREE.MathUtils.randFloat(-10, 10);
+  positions[i * 3 + 2] = THREE.MathUtils.randFloat(-15, 5);
 
   const color = Math.random() < 0.5 ? red : gold;
   colors[i * 3]     = color.r;
@@ -152,21 +140,19 @@ scene.add(confetti);
 
 function updateConfetti() {
   for (let i = 0; i < confettiCount; i++) {
-    positions[i * 3 + 1] -= speeds[i];                       // chute
-    if (positions[i * 3 + 1] < -10) positions[i * 3 + 1] = 10; // arrivé en bas → on le remet en haut
+    positions[i * 3 + 1] -= speeds[i];
+    if (positions[i * 3 + 1] < -10) positions[i * 3 + 1] = 10;
   }
-  confettiGeometry.attributes.position.needsUpdate = true; // renvoyer les positions à la carte graphique
+  confettiGeometry.attributes.position.needsUpdate = true;
 }
 
 function animate() {
-  // Le cube suit l'inclinaison doucement (lerp = on avance de 10 % vers la cible à chaque image)
   cube.rotation.x = THREE.MathUtils.lerp(cube.rotation.x, tilt.x, 0.1);
   cube.rotation.z = THREE.MathUtils.lerp(cube.rotation.z, tilt.z, 0.1);
 
   if (duck) {
-    duck.rotation.y += 0.01; // on ne le fait tourner qu'une fois chargé
+    duck.rotation.y += 0.01;
 
-    // Saut : une demi-sinusoïde de 0.6 s, hauteur max 2 unités
     if (jumpStart !== null) {
       const t = (performance.now() - jumpStart) / 600;
       if (t >= 1) {
