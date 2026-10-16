@@ -18,6 +18,33 @@
       font: 14px Arial, sans-serif;
       pointer-events: none;
     }
+    #search {
+      position: absolute; top: 12px; right: 12px;
+      display: flex; gap: 4px;
+      font: 14px Arial, sans-serif;
+    }
+    #search input {
+      width: 180px; padding: 6px 8px;
+      border: none; border-radius: 6px;
+    }
+    #search button {
+      padding: 6px 10px; border: none; border-radius: 6px;
+      background: #2a7ae2; color: #fff; cursor: pointer;
+    }
+    #suggestions {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      margin: 0; padding: 0; list-style: none;
+      max-height: 260px; overflow-y: auto;
+      background: #fff; border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    #suggestions:empty { display: none; }
+    #suggestions li {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px; cursor: pointer;
+    }
+    #suggestions li:hover { background: #e8f0fe; }
+    #suggestions img { width: 24px; height: 16px; object-fit: cover; }
     @media (max-width: 700px) {
       body { flex-direction: column; }
       #globe, #map { flex: 1; }
@@ -27,6 +54,11 @@
 <body>
   <div id="globe">
     <div id="info">Chargement…</div>
+    <form id="search">
+      <input id="search-input" placeholder="Rechercher un pays…" autocomplete="off">
+      <button type="submit">Rechercher</button>
+      <ul id="suggestions"></ul>
+    </form>
   </div>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

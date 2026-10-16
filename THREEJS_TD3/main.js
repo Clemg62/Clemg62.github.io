@@ -161,12 +161,12 @@ async function addCountries() {
     );
     flag.position.copy(latLonToVector3(lat, lon, EARTH_RADIUS + 0.005));
     flag.lookAt(latLonToVector3(lat, lon, 2));
-    flag.userData = { name, lat, lon };
+    flag.userData = { name, englishName: country.name.common, flagUrl, lat, lon };
     globe.add(flag);
     flags.push(flag);
 
     const icon = L.icon({ iconUrl: flagUrl, iconSize: [24, 16] });
-    L.marker([lat, lon], { icon, title: name })
+    flag.userData.marker = L.marker([lat, lon], { icon, title: name })
       .addTo(map)
       .bindPopup(name)
       .on('click', () => {
@@ -176,6 +176,68 @@ async function addCountries() {
   }
   console.log(`${flags.length} pays chargés`);
 }
+
+function normalize(text) {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+}
+
+function searchCountries(query) {
+  const q = normalize(query);
+  if (!q) return [];
+  const exact = [], startsWith = [], contains = [];
+  for (const flag of flags) {
+    const names = [flag.userData.name, flag.userData.englishName].map(normalize);
+    if (names.some((n) => n === q)) exact.push(flag);
+    else if (names.some((n) => n.startsWith(q))) startsWith.push(flag);
+    else if (names.some((n) => n.includes(q))) contains.push(flag);
+  }
+  const byName = (a, b) => a.userData.name.localeCompare(b.userData.name, 'fr');
+  return [...exact, ...startsWith.sort(byName), ...contains.sort(byName)];
+}
+
+const searchForm = document.getElementById('search');
+const searchInput = document.getElementById('search-input');
+const suggestions = document.getElementById('suggestions');
+
+function goToCountry(flag) {
+  const { lat, lon, marker } = flag.userData;
+  selectCountry(flag);
+  flyGlobeTo(lat, lon);
+  map.flyTo([lat, lon], 5);
+  marker.openPopup();
+  searchInput.value = '';
+  suggestions.replaceChildren();
+}
+
+searchInput.addEventListener('input', () => {
+  const results = searchCountries(searchInput.value).slice(0, 8);
+  suggestions.replaceChildren(...results.map((flag) => {
+    const item = document.createElement('li');
+    const img = document.createElement('img');
+    img.src = flag.userData.flagUrl;
+    item.append(img, flag.userData.name);
+    item.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      goToCountry(flag);
+    });
+    return item;
+  }));
+});
+
+searchInput.addEventListener('blur', () => suggestions.replaceChildren());
+searchInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') suggestions.replaceChildren();
+});
+
+searchForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const [flag] = searchCountries(searchInput.value);
+  if (!flag) {
+    info.textContent = `Aucun pays trouvé pour « ${searchInput.value} »`;
+    return;
+  }
+  goToCountry(flag);
+});
 
 addCountries().catch((err) => console.error('Erreur chargement pays :', err));
 
