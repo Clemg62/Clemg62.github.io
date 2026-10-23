@@ -17,6 +17,14 @@ const POIS = [
 
 const LENS_CENTER = { lat: 50.4290, lng: 2.8320 };
 const LABEL_RADIUS = 50;
+const LABEL_SPACING = 15;
+const ROW_HEIGHT = 3.5;
+const WIKI_RADIUS = 10000;
+const WIKI_LIMIT = 500;
+const WIKI_MAX_LABELS = 15;
+const WIKI_EXCLUDED = /^(Unité urbaine|Aire urbaine|Aire d'attraction|Arrondissement|\d+e arrondissement|Canton|Circonscription|Métropole|Communauté|Liste|Quartier|Rue|Avenue|Boulevard|Montée|Impasse|Immeuble|Reconstruction)/;
+const FAR_DISTANCE = 50;
+const CLUSTER_DISTANCE = 40;
 
 let target = BOLLAERT;
 let userPos = null;
@@ -27,6 +35,7 @@ let hasCompass = false;
 const targetEl = document.getElementById('target');
 const distanceEl = document.getElementById('distance');
 const detailsEl = document.getElementById('details');
+const wikiLinkEl = document.getElementById('wiki-link');
 
 // --- Scène 3D (transparente, par-dessus la vidéo) ---
 
@@ -143,7 +152,7 @@ function drawLabel(label) {
   const isTarget = poi === target;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = isTarget ? 'rgba(227, 6, 19, 0.9)' : 'rgba(0, 0, 0, 0.6)';
+  ctx.fillStyle = isTarget ? 'rgba(227, 6, 19, 0.9)' : poi.wiki ? 'rgba(42, 122, 226, 0.75)' : 'rgba(0, 0, 0, 0.6)';
   ctx.beginPath();
   ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 24);
   ctx.fill();
@@ -180,12 +189,48 @@ function addLabel(poi) {
   return label;
 }
 
+function angleGap(a, b) {
+  const diff = Math.abs(a - b) % 360;
+  return Math.min(diff, 360 - diff);
+}
+
+function removeLabel(label) {
+  scene.remove(label.sprite);
+  label.sprite.material.map.dispose();
+  label.sprite.material.dispose();
+  labels.splice(labels.indexOf(label), 1);
+}
+
 function placeLabels() {
   const origin = userPos ?? LENS_CENTER;
-  const sorted = [...labels].sort((a, b) => computeBearing(origin, a.poi) - computeBearing(origin, b.poi));
-  sorted.forEach((label, i) => {
-    const bearing = THREE.MathUtils.degToRad(computeBearing(origin, label.poi));
-    const height = -2 + (i % 4) * 3.5;
+  const rows = [];
+  const shownFar = [];
+  const byDistance = [...labels].sort((a, b) => {
+    if (a.poi === target) return -1;
+    if (b.poi === target) return 1;
+    return computeDistance(origin, a.poi) - computeDistance(origin, b.poi);
+  });
+
+  byDistance.forEach((label) => {
+    if (computeDistance(origin, label.poi) > FAR_DISTANCE) {
+      const hidden = shownFar.some((poi) => computeDistance(poi, label.poi) < CLUSTER_DISTANCE);
+      label.sprite.visible = !hidden;
+      if (hidden) return;
+      shownFar.push(label.poi);
+    } else {
+      label.sprite.visible = true;
+    }
+
+    const bearingDeg = computeBearing(origin, label.poi);
+    let row = rows.findIndex((bearings) => bearings.every((b) => angleGap(b, bearingDeg) >= LABEL_SPACING));
+    if (row === -1) {
+      rows.push([]);
+      row = rows.length - 1;
+    }
+    rows[row].push(bearingDeg);
+
+    const bearing = THREE.MathUtils.degToRad(bearingDeg);
+    const height = -1 + row * ROW_HEIGHT;
     label.sprite.position.set(Math.sin(bearing) * LABEL_RADIUS, height, -Math.cos(bearing) * LABEL_RADIUS);
     label.sprite.renderOrder = label.poi === target ? 1 : 0;
     drawLabel(label);
@@ -247,6 +292,8 @@ function cardinal(deg) {
 
 function updateInfo() {
   targetEl.textContent = `🎯 ${target.name}`;
+  wikiLinkEl.hidden = !target.url;
+  if (target.url) wikiLinkEl.href = target.url;
   if (!userPos) return;
 
   const bearing = computeBearing(userPos, target);
@@ -269,6 +316,8 @@ POIS.forEach((poi) => {
     .on('click', () => setTarget(poi));
 });
 
+const wikiLayer = L.layerGroup().addTo(map);
+
 const targetMarker = L.marker([target.lat, target.lng]).addTo(map).bindPopup(target.name);
 const userMarker = L.circleMarker([0, 0], { radius: 8, color: '#fff', fillColor: '#2a7ae2', fillOpacity: 1 });
 const line = L.polyline([], { color: '#e30613', dashArray: '8 8' }).addTo(map);
@@ -289,10 +338,7 @@ let searchLabel = null;
 function setTarget(poi) {
   target = poi;
   if (!labels.some((label) => label.poi === poi)) {
-    if (searchLabel) {
-      scene.remove(searchLabel.sprite);
-      labels.splice(labels.indexOf(searchLabel), 1);
-    }
+    if (searchLabel) removeLabel(searchLabel);
     searchLabel = addLabel(poi);
   }
   placeLabels();
@@ -461,9 +507,47 @@ container.addEventListener('pointerup', (e) => {
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObjects(labels.map((label) => label.sprite))[0];
+  const hit = raycaster.intersectObjects(labels.filter((label) => label.sprite.visible).map((label) => label.sprite))[0];
   if (hit) setTarget(hit.object.userData.poi);
 });
+
+// --- Lieux autour de moi (Wikipédia) ---
+
+let wikiLabels = [];
+let wikiOrigin = null;
+
+async function loadNearbyPlaces(origin) {
+  wikiOrigin = origin;
+  const url = 'https://fr.wikipedia.org/w/api.php?action=query&list=geosearch&format=json&origin=*'
+    + `&gscoord=${origin.lat}|${origin.lng}&gsradius=${WIKI_RADIUS}&gslimit=${WIKI_LIMIT}`;
+  try {
+    const data = await (await fetch(url)).json();
+    const spotKey = (place) => `${place.lat.toFixed(4)},${place.lon.toFixed(4)}`;
+    const sameSpot = new Map();
+    data.query.geosearch.forEach((place) => sameSpot.set(spotKey(place), (sameSpot.get(spotKey(place)) ?? 0) + 1));
+    wikiLabels.forEach((label) => {
+      if (label.poi !== target) removeLabel(label);
+    });
+    wikiLayer.clearLayers();
+
+    wikiLabels = data.query.geosearch
+      .filter((place) => !WIKI_EXCLUDED.test(place.title))
+      .filter((place) => sameSpot.get(spotKey(place)) === 1)
+      .filter((place) => !labels.some((label) => label.poi.name === place.title))
+      .slice(0, WIKI_MAX_LABELS)
+      .map((place) => {
+        const poi = { name: place.title, lat: place.lat, lng: place.lon, wiki: true, url: `https://fr.wikipedia.org/?curid=${place.pageid}` };
+        L.circleMarker([poi.lat, poi.lng], { radius: 5, color: '#fff', fillColor: '#2a7ae2', fillOpacity: 1 })
+          .addTo(wikiLayer)
+          .bindTooltip(poi.name)
+          .on('click', () => setTarget(poi));
+        return addLabel(poi);
+      });
+    placeLabels();
+  } catch (error) {
+    console.error('Erreur Wikipédia :', error);
+  }
+}
 
 // --- Géolocalisation ---
 
@@ -471,6 +555,7 @@ let firstFix = true;
 navigator.geolocation.watchPosition(
   (pos) => {
     userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    if (!wikiOrigin || computeDistance(wikiOrigin, userPos) > 2) loadNearbyPlaces(userPos);
     placeLabels();
     updateInfo();
     updateMap(firstFix);
