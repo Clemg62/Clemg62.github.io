@@ -17,7 +17,20 @@
       display: flex; flex-direction: column; gap: 8px;
       pointer-events: none;
     }
-    #search { display: flex; gap: 4px; pointer-events: auto; }
+    #search { position: relative; display: flex; gap: 4px; pointer-events: auto; }
+    #suggestions {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 2;
+      margin: 0; padding: 0; list-style: none;
+      max-height: 260px; overflow-y: auto;
+      background: #fff; border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    #suggestions:empty { display: none; }
+    #suggestions li { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+    #suggestions li:hover, #suggestions li.active { background: #fff3b0; }
+    #suggestions small { display: block; color: #666; }
+    #info.updated { animation: flash 1s; }
+    @keyframes flash { from { background: rgba(227, 6, 19, 0.9); } }
     #search input {
       flex: 1; min-width: 0; padding: 8px; font-size: 16px;
       border: 2px solid #e30613; border-radius: 6px;
@@ -48,6 +61,7 @@
       <form id="search">
         <input id="search-input" placeholder="Entrer une adresse, une ville, un stade…" autocomplete="off">
         <button type="submit">Go</button>
+        <ul id="suggestions"></ul>
       </form>
       <div id="buttons">
         <button id="lensBtn" type="button">Bollaert</button>

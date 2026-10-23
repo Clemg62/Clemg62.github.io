@@ -246,7 +246,7 @@ function cardinal(deg) {
 }
 
 function updateInfo() {
-  targetEl.textContent = target.name;
+  targetEl.textContent = `🎯 ${target.name}`;
   if (!userPos) return;
 
   const bearing = computeBearing(userPos, target);
@@ -298,30 +298,131 @@ function setTarget(poi) {
   placeLabels();
   updateInfo();
   updateMap(true);
+
+  const info = document.getElementById('info');
+  info.classList.remove('updated');
+  void info.offsetWidth;
+  info.classList.add('updated');
 }
 
 map.on('click', (e) => {
   setTarget({ name: `Point (${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)})`, lat: e.latlng.lat, lng: e.latlng.lng });
 });
 
-// --- Recherche d'adresse (Nominatim) ---
+// --- Recherche d'adresse avec suggestions (Photon / OpenStreetMap) ---
+
+const searchInput = document.getElementById('search-input');
+const suggestionsEl = document.getElementById('suggestions');
+let suggestions = [];
+let activeIndex = -1;
+let searchTimer = null;
+let lastQuery = '';
+
+function featureToPoi(feature) {
+  const p = feature.properties;
+  const street = [p.housenumber, p.street].filter(Boolean).join(' ');
+  const title = p.name ?? (street || p.city || 'Adresse');
+  const subtitle = [p.name ? street : null, [p.postcode, p.city].filter(Boolean).join(' '), p.country]
+    .filter((part) => part && part !== title)
+    .join(', ');
+  const [lng, lat] = feature.geometry.coordinates;
+  const name = p.city && p.city !== title ? `${title}, ${p.city}` : title;
+  return { name, subtitle, lat, lng };
+}
+
+async function fetchSuggestions(query) {
+  const origin = userPos ?? LENS_CENTER;
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=fr&lat=${origin.lat}&lon=${origin.lng}`;
+  const data = await (await fetch(url)).json();
+  return data.features.map(featureToPoi);
+}
+
+function renderSuggestions() {
+  suggestionsEl.innerHTML = '';
+  suggestions.forEach((poi, i) => {
+    const li = document.createElement('li');
+    li.className = i === activeIndex ? 'active' : '';
+    li.textContent = poi.name.split(',')[0];
+    if (poi.subtitle) {
+      const small = document.createElement('small');
+      small.textContent = poi.subtitle;
+      li.appendChild(small);
+    }
+    li.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      chooseSuggestion(poi);
+    });
+    suggestionsEl.appendChild(li);
+  });
+}
+
+function clearSuggestions() {
+  suggestions = [];
+  activeIndex = -1;
+  renderSuggestions();
+}
+
+function chooseSuggestion(poi) {
+  searchInput.value = poi.name;
+  searchInput.blur();
+  clearSuggestions();
+  setTarget(poi);
+}
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const query = searchInput.value.trim();
+  if (query.length < 3) {
+    clearSuggestions();
+    return;
+  }
+  searchTimer = setTimeout(async () => {
+    lastQuery = query;
+    try {
+      const results = await fetchSuggestions(query);
+      if (query !== lastQuery) return;
+      suggestions = results;
+      activeIndex = -1;
+      renderSuggestions();
+    } catch (error) {
+      console.error('Erreur de géocodage :', error);
+    }
+  }, 300);
+});
+
+searchInput.addEventListener('keydown', (e) => {
+  if (suggestions.length === 0) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const step = e.key === 'ArrowDown' ? 1 : -1;
+    activeIndex = (activeIndex + step + suggestions.length) % suggestions.length;
+    renderSuggestions();
+  } else if (e.key === 'Escape') {
+    clearSuggestions();
+  }
+});
+
+searchInput.addEventListener('blur', () => setTimeout(clearSuggestions, 150));
 
 document.getElementById('search').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const query = document.getElementById('search-input').value.trim();
+  const query = searchInput.value.trim();
   if (!query) return;
 
-  document.getElementById('search-input').blur();
+  if (suggestions.length > 0) {
+    chooseSuggestion(suggestions[Math.max(activeIndex, 0)]);
+    return;
+  }
+
+  searchInput.blur();
   targetEl.textContent = 'Recherche…';
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-    const results = await (await fetch(url)).json();
+    const results = await fetchSuggestions(query);
     if (results.length === 0) {
       targetEl.textContent = `Aucun résultat pour « ${query} »`;
       return;
     }
-    const { display_name, lat, lon } = results[0];
-    setTarget({ name: display_name.split(',').slice(0, 2).join(','), lat: parseFloat(lat), lng: parseFloat(lon) });
+    setTarget(results[0]);
   } catch (error) {
     console.error('Erreur de géocodage :', error);
     targetEl.textContent = 'Erreur pendant la recherche';
@@ -337,6 +438,7 @@ const pointer = new THREE.Vector2();
 let dragStart = null;
 
 container.addEventListener('pointerdown', (e) => {
+  if (e.target !== renderer.domElement) return;
   dragStart = { x: e.clientX, heading, moved: false };
 });
 
@@ -348,7 +450,8 @@ container.addEventListener('pointermove', (e) => {
 });
 
 container.addEventListener('pointerup', (e) => {
-  const wasDrag = dragStart?.moved;
+  if (!dragStart) return;
+  const wasDrag = dragStart.moved;
   dragStart = null;
   if (wasDrag) {
     updateInfo();
