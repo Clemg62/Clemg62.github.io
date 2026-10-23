@@ -311,6 +311,7 @@ document.getElementById('search').addEventListener('submit', async (e) => {
   const query = document.getElementById('search-input').value.trim();
   if (!query) return;
 
+  document.getElementById('search-input').blur();
   targetEl.textContent = 'Recherche…';
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
