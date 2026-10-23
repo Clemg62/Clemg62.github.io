@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TD4 - Direction Bollaert en réalité augmentée</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body { display: flex; font: 14px Arial, sans-serif; }
+    #scene { position: relative; flex: 3; min-width: 0; overflow: hidden; background: #1b1b1b; touch-action: none; }
+    #video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #scene canvas { position: absolute; inset: 0; display: block; }
+    #map { flex: 2; min-width: 0; }
+    #panel {
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    #search { display: flex; gap: 4px; pointer-events: auto; }
+    #search input {
+      flex: 1; min-width: 0; padding: 8px;
+      border: 2px solid #e30613; border-radius: 6px;
+    }
+    #search button, #sensorBtn, #lensBtn {
+      padding: 8px 12px; font-weight: bold; cursor: pointer;
+      background: #ffd400; color: #e30613; border: 2px solid #e30613; border-radius: 6px;
+    }
+    #buttons { display: flex; gap: 4px; pointer-events: auto; }
+    #info {
+      align-self: flex-start;
+      padding: 8px 12px; border-radius: 6px;
+      background: rgba(0, 0, 0, 0.65); color: #fff;
+      line-height: 1.5;
+    }
+    #distance { font-size: 26px; font-weight: bold; color: #ffd400; }
+    @media (max-width: 700px) {
+      body { flex-direction: column; }
+      #scene { flex: 3; }
+      #map { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="scene">
+    <video id="video" autoplay playsinline muted></video>
+    <div id="panel">
+      <form id="search">
+        <input id="search-input" placeholder="Entrer une adresse, une ville, un stade…" autocomplete="off">
+        <button type="submit">Go</button>
+      </form>
+      <div id="buttons">
+        <button id="lensBtn" type="button">Bollaert</button>
+        <button id="sensorBtn" type="button">Activer caméra + boussole</button>
+      </div>
+      <div id="info">
+        <div id="target">Stade Bollaert-Delelis</div>
+        <div id="distance">…</div>
+        <div id="details">En attente de ta position…</div>
+      </div>
+    </div>
+  </div>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
