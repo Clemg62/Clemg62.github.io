@@ -24,7 +24,6 @@ const WIKI_LIMIT = 500;
 const WIKI_MAX_LABELS = 15;
 const WIKI_EXCLUDED = /^(Unité urbaine|Aire urbaine|Aire d'attraction|Arrondissement|\d+e arrondissement|Canton|Circonscription|Métropole|Communauté|Liste|Quartier|Rue|Avenue|Boulevard|Montée|Impasse|Immeuble|Reconstruction)/;
 const FAR_DISTANCE = 50;
-const CLUSTER_DISTANCE = 40;
 
 let target = BOLLAERT;
 let userPos = null;
@@ -204,7 +203,6 @@ function removeLabel(label) {
 function placeLabels() {
   const origin = userPos ?? LENS_CENTER;
   const rows = [];
-  const shownFar = [];
   const byDistance = [...labels].sort((a, b) => {
     if (a.poi === target) return -1;
     if (b.poi === target) return 1;
@@ -212,14 +210,8 @@ function placeLabels() {
   });
 
   byDistance.forEach((label) => {
-    if (computeDistance(origin, label.poi) > FAR_DISTANCE) {
-      const hidden = shownFar.some((poi) => computeDistance(poi, label.poi) < CLUSTER_DISTANCE);
-      label.sprite.visible = !hidden;
-      if (hidden) return;
-      shownFar.push(label.poi);
-    } else {
-      label.sprite.visible = true;
-    }
+    label.sprite.visible = label.poi === target || computeDistance(origin, label.poi) <= FAR_DISTANCE;
+    if (!label.sprite.visible) return;
 
     const bearingDeg = computeBearing(origin, label.poi);
     let row = rows.findIndex((bearings) => bearings.every((b) => angleGap(b, bearingDeg) >= LABEL_SPACING));
